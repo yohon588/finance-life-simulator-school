@@ -2,10 +2,13 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { Pool } = require("pg");
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const DB_PATH = path.join(ROOT, "db.json");
+const DATABASE_URL = process.env.DATABASE_URL || "";
+let pool = null;
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -72,8 +75,6 @@ const EVENTS = [
   { id: 8, title: "通胀回升，基础生活成本持续抬高", body: "名义收益看起来不错，但真实购买力正在被生活成本吞噬。", market: { A1: 0.12, A2: 0.3, A3: 0.25, A4: -1.2, A5: 2, A6: 4, A7: 6 }, effects: [{ type: "inflate", ratio: 0.08, permanent: true }], points: ["帮助学生区分名义收益和真实购买力。", "单纯存低收益资产可能仍然跑不赢通胀。"] }
 ];
 
-ensureDb();
-
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
@@ -90,12 +91,19 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`Finance Life Simulator running at http://localhost:${PORT}`);
-});
+initStorage()
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log(`Finance Life Simulator running at http://localhost:${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Failed to initialize storage", error);
+    process.exit(1);
+  });
 
 async function handleApi(req, res, url) {
-  const db = readDb();
+  const db = await readDb();
   const auth = authenticate(req, db);
 
   if (req.method === "POST" && url.pathname === "/api/rooms") {
@@ -113,7 +121,7 @@ async function handleApi(req, res, url) {
     const room = createRoom(roomCode, roomName, teacherId, teacherName);
     db.rooms[roomCode] = room;
     db.sessions[token] = { roomCode, userId: teacherId, role: "teacher" };
-    writeDb(db);
+    await writeDb(db);
     writeJson(res, 200, { token, roomCode, user: { id: teacherId, role: "teacher", displayName: teacherName }, room: serializeRoomForTeacher(room) });
     return;
   }
@@ -140,7 +148,7 @@ async function handleApi(req, res, url) {
     const token = createToken();
     room.students[studentId] = createStudent(studentId, displayName, roleId);
     db.sessions[token] = { roomCode, userId: studentId, role: "student" };
-    writeDb(db);
+    await writeDb(db);
     writeJson(res, 200, { token, roomCode, user: { id: studentId, role: "student", displayName }, room: serializeRoomForStudent(room, studentId) });
     return;
   }
@@ -168,7 +176,7 @@ async function handleApi(req, res, url) {
     room.season.eventId = Number(body.eventId || 0);
     room.season.status = "open";
     room.season.updatedAt = Date.now();
-    writeDb(db);
+    await writeDb(db);
     writeJson(res, 200, buildClientPayload(room, auth));
     return;
   }
@@ -178,7 +186,7 @@ async function handleApi(req, res, url) {
     if (res.writableEnded) return;
     room.season.status = "locked";
     room.season.updatedAt = Date.now();
-    writeDb(db);
+    await writeDb(db);
     writeJson(res, 200, buildClientPayload(room, auth));
     return;
   }
@@ -187,7 +195,7 @@ async function handleApi(req, res, url) {
     requireTeacher(auth, res);
     if (res.writableEnded) return;
     settleRoom(room);
-    writeDb(db);
+    await writeDb(db);
     writeJson(res, 200, buildClientPayload(room, auth));
     return;
   }
@@ -207,7 +215,7 @@ async function handleApi(req, res, url) {
     student.decisions[String(room.season.round)] = normalizeDecision(body);
     student.optionDir = student.decisions[String(room.season.round)].optionDir;
     room.season.updatedAt = Date.now();
-    writeDb(db);
+    await writeDb(db);
     writeJson(res, 200, buildClientPayload(room, auth));
     return;
   }
@@ -217,7 +225,7 @@ async function handleApi(req, res, url) {
     if (res.writableEnded) return;
     const teacher = room.teacher;
     db.rooms[auth.roomCode] = createRoom(auth.roomCode, room.name, teacher.id, teacher.displayName);
-    writeDb(db);
+    await writeDb(db);
     writeJson(res, 200, buildClientPayload(db.rooms[auth.roomCode], auth));
     return;
   }
@@ -244,18 +252,46 @@ function serveStatic(pathname, res) {
   });
 }
 
-function ensureDb() {
+async function initStorage() {
+  if (DATABASE_URL) {
+    pool = new Pool({
+      connectionString: DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    });
+    await pool.query(`
+      create table if not exists app_state (
+        state_key text primary key,
+        value jsonb not null
+      )
+    `);
+    const existing = await pool.query("select state_key from app_state where state_key = 'main'");
+    if (!existing.rowCount) {
+      await pool.query("insert into app_state (state_key, value) values ($1, $2::jsonb)", ["main", JSON.stringify({ rooms: {}, sessions: {} })]);
+    }
+    return;
+  }
+
   if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(DB_PATH, JSON.stringify({ rooms: {}, sessions: {} }, null, 2));
   }
 }
 
-function readDb() {
-  ensureDb();
+async function readDb() {
+  if (pool) {
+    const result = await pool.query("select value from app_state where state_key = 'main'");
+    return result.rows[0]?.value || { rooms: {}, sessions: {} };
+  }
+  if (!fs.existsSync(DB_PATH)) {
+    fs.writeFileSync(DB_PATH, JSON.stringify({ rooms: {}, sessions: {} }, null, 2));
+  }
   return JSON.parse(fs.readFileSync(DB_PATH, "utf-8"));
 }
 
-function writeDb(db) {
+async function writeDb(db) {
+  if (pool) {
+    await pool.query("update app_state set value = $2::jsonb where state_key = $1", ["main", JSON.stringify(db)]);
+    return;
+  }
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 }
 
