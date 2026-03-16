@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>理财人生模拟器</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div class="hero-copy-block">
+        <p class="eyebrow">Shared Classroom Edition</p>
+        <h1>理财人生模拟器</h1>
+        <p class="hero-copy">多人共享版适用于教师投屏与学生同时参与。教师创建课堂房间后，学生通过课堂码加入，同步完成每轮新闻阅读、预算决策、资产配置与结算排行。</p>
+      </div>
+      <div class="hero-actions">
+        <button id="logout-button" class="ghost-button hidden">退出房间</button>
+      </div>
+    </header>
+
+    <section id="auth-view" class="auth-grid">
+      <article class="panel">
+        <p class="panel-kicker">教师入口</p>
+        <h2>创建课堂房间</h2>
+        <form id="teacher-create-form" class="auth-form">
+          <label>教师姓名
+            <input id="teacher-name" type="text" placeholder="例如：王老师">
+          </label>
+          <label>课堂名称
+            <input id="room-name" type="text" placeholder="例如：高二（3）班理财课">
+          </label>
+          <button class="primary-button" type="submit">创建并进入教师台</button>
+        </form>
+      </article>
+
+      <article class="panel">
+        <p class="panel-kicker">学生入口</p>
+        <h2>加入共享课堂</h2>
+        <form id="student-join-form" class="auth-form">
+          <label>课堂码
+            <input id="join-room-code" type="text" placeholder="例如：AB12CD">
+          </label>
+          <label>学生姓名
+            <input id="student-name" type="text" placeholder="例如：李明">
+          </label>
+          <label>选择角色
+            <select id="join-role"></select>
+          </label>
+          <button class="primary-button" type="submit">加入并进入学生端</button>
+        </form>
+      </article>
+    </section>
+
+    <section id="app-view" class="hidden">
+      <section class="top-grid">
+        <article class="panel season-panel">
+          <div class="panel-title-row">
+            <div>
+              <p class="panel-kicker">课堂信息</p>
+              <h2 id="season-title">第 1 / 8 回合</h2>
+            </div>
+            <span id="round-status" class="status-pill">准备中</span>
+          </div>
+          <div class="metric-row">
+            <div>
+              <span class="metric-label">课堂名称</span>
+              <strong id="room-name-display">-</strong>
+            </div>
+            <div>
+              <span class="metric-label">课堂码</span>
+              <strong id="room-code-display">-</strong>
+            </div>
+            <div>
+              <span class="metric-label">当前事件</span>
+              <strong id="event-title">等待教师发布</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel view-panel">
+          <p class="panel-kicker">控制面板</p>
+          <div class="segmented-control" id="view-switcher">
+            <button class="segmented-button active" data-view="student">学生端</button>
+            <button class="segmented-button" data-view="teacher">教师台</button>
+            <button class="segmented-button" data-view="ranking">排行榜</button>
+          </div>
+          <div class="select-row">
+            <label>我的身份
+              <input id="identity-display" type="text" disabled>
+            </label>
+            <label>榜单模式
+              <select id="ranking-mode">
+                <option value="final_score">综合得分榜</option>
+                <option value="net_worth">净资产榜</option>
+                <option value="growth">成长率榜</option>
+                <option value="health">健康分榜</option>
+              </select>
+            </label>
+          </div>
+        </article>
+      </section>
+
+      <main>
+        <section id="student-view" class="view-section active">
+          <div class="content-grid">
+            <article class="panel">
+              <div class="panel-title-row">
+                <div>
+                  <p class="panel-kicker">学生面板</p>
+                  <h2 id="student-name-display">--</h2>
+                </div>
+                <span id="player-role" class="subtle-pill">角色信息</span>
+              </div>
+              <div class="summary-grid" id="summary-cards"></div>
+              <div class="news-card">
+                <div>
+                  <p class="metric-label">宏观新闻</p>
+                  <h3 id="news-headline">等待本轮事件</h3>
+                </div>
+                <p id="news-body">教师发布事件后，这里会显示新闻叙事、市场信号与课堂讨论线索。</p>
+              </div>
+              <div class="table-card">
+                <div class="table-header">
+                  <h3>资产负债概览</h3>
+                  <span id="risk-hint" class="risk-hint">稳健观察中</span>
+                </div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>项目</th>
+                      <th>数值</th>
+                      <th>说明</th>
+                    </tr>
+                  </thead>
+                  <tbody id="balance-table"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="panel decision-panel">
+              <div class="panel-title-row">
+                <div>
+                  <p class="panel-kicker">决策包</p>
+                  <h2>本轮操作</h2>
+                </div>
+                <span id="decision-status" class="status-pill neutral">未提交</span>
+              </div>
+              <form id="decision-form">
+                <div class="form-block">
+                  <h3>消费与生活质量</h3>
+                  <div id="consumption-options" class="chip-grid"></div>
+                </div>
+
+                <div class="form-block two-column">
+                  <label>本轮新增消费贷
+                    <input id="borrow-amount" type="number" min="0" step="100" value="0">
+                  </label>
+                  <label>本轮还款金额
+                    <input id="repay-amount" type="number" min="0" step="100" value="0">
+                  </label>
+                </div>
+
+                <div class="form-block">
+                  <div class="section-heading">
+                    <h3>资产配置调整</h3>
+                    <p>正数表示买入，负数表示卖出，单位为元。</p>
+                  </div>
+                  <div id="asset-inputs" class="asset-grid"></div>
+                </div>
+
+                <div class="form-block two-column">
+                  <label>期权方向
+                    <select id="option-direction">
+                      <option value="CALL">CALL 看涨</option>
+                      <option value="PUT">PUT 看跌</option>
+                    </select>
+                  </label>
+                  <label class="checkbox-row">
+                    <input id="risk-confirm" type="checkbox">
+                    <span>我已确认 A7、A8、A9 属于高风险资产</span>
+                  </label>
+                </div>
+
+                <div class="decision-preview">
+                  <div>
+                    <span class="metric-label">预测最低还款</span>
+                    <strong id="preview-min-pay">0</strong>
+                  </div>
+                  <div>
+                    <span class="metric-label">预测回合末现金</span>
+                    <strong id="preview-cash">0</strong>
+                  </div>
+                  <div>
+                    <span class="metric-label">提交提示</span>
+                    <strong id="preview-message">等待输入</strong>
+                  </div>
+                </div>
+
+                <button class="primary-button full-width" type="submit">提交或覆盖本轮决策</button>
+              </form>
+            </article>
+          </div>
+        </section>
+
+        <section id="teacher-view" class="view-section">
+          <div class="content-grid teacher-grid">
+            <article class="panel">
+              <div class="panel-title-row">
+                <div>
+                  <p class="panel-kicker">教师控制台</p>
+                  <h2>回合控制</h2>
+                </div>
+                <span class="subtle-pill">共享正式版</span>
+              </div>
+              <div class="teacher-controls">
+                <label>发布事件
+                  <select id="teacher-event"></select>
+                </label>
+                <div class="button-row">
+                  <button id="publish-round" class="primary-button" type="button">发布并开放</button>
+                  <button id="lock-round" class="ghost-button" type="button">锁定回合</button>
+                  <button id="settle-round" class="accent-button" type="button">结算回合</button>
+                  <button id="reset-room" class="ghost-button" type="button">重置课堂</button>
+                </div>
+              </div>
+              <div class="teacher-metrics" id="teacher-metrics"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-title-row">
+                <div>
+                  <p class="panel-kicker">教学观察</p>
+                  <h2>课堂提示</h2>
+                </div>
+              </div>
+              <ul id="teaching-points" class="teaching-list"></ul>
+              <div class="table-card">
+                <div class="table-header">
+                  <h3>学生提交进度</h3>
+                  <span class="metric-label">所有学生共享同一回合状态</span>
+                </div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>学生</th>
+                      <th>角色</th>
+                      <th>提交状态</th>
+                      <th>风险标签</th>
+                    </tr>
+                  </thead>
+                  <tbody id="submission-table"></tbody>
+                </table>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="ranking-view" class="view-section">
+          <div class="content-grid ranking-grid">
+            <article class="panel">
+              <div class="panel-title-row">
+                <div>
+                  <p class="panel-kicker">课堂排行榜</p>
+                  <h2 id="ranking-title">综合得分榜</h2>
+                </div>
+                <span class="subtle-pill">适合教师投屏</span>
+              </div>
+              <div class="ranking-stage" id="ranking-stage"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-title-row">
+                <div>
+                  <p class="panel-kicker">赛季轨迹</p>
+                  <h2>回合记录</h2>
+                </div>
+              </div>
+              <div id="round-log" class="round-log"></div>
+            </article>
+          </div>
+        </section>
+      </main>
+    </section>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

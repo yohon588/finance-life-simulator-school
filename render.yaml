@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: finance-life-simulator-school
+    runtime: node
+    plan: starter
+    buildCommand: ""
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 3000
