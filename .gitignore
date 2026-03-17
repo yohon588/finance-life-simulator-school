@@ -1,3 +1,4 @@
 server.out.log
 server.err.log
 spec_extracted.txt
+node_modules/

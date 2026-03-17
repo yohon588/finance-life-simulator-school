@@ -12,17 +12,17 @@
       <div class="hero-copy-block">
         <p class="eyebrow">Shared Classroom Edition</p>
         <h1>理财人生模拟器</h1>
-        <p class="hero-copy">多人共享版适用于教师投屏与学生同时参与。教师创建课堂房间后，学生通过课堂码加入，同步完成每轮新闻阅读、预算决策、资产配置与结算排行。</p>
+        <p class="hero-copy">老师创建课堂并发布回合事件，学生用课堂码加入后完成预算、借贷和资产配置。每轮都会给出开始事件、结算事件、现金流账单、资产变化和综合评分解释。</p>
       </div>
       <div class="hero-actions">
-        <button id="logout-button" class="ghost-button hidden">退出房间</button>
+        <button id="logout-button" class="ghost-button hidden">退出课堂</button>
       </div>
     </header>
 
     <section id="auth-view" class="auth-grid">
       <article class="panel">
         <p class="panel-kicker">教师入口</p>
-        <h2>创建课堂房间</h2>
+        <h2>创建共享课堂</h2>
         <form id="teacher-create-form" class="auth-form">
           <label>教师姓名
             <input id="teacher-name" type="text" placeholder="例如：王老师">
@@ -36,7 +36,7 @@
 
       <article class="panel">
         <p class="panel-kicker">学生入口</p>
-        <h2>加入共享课堂</h2>
+        <h2>加入课堂</h2>
         <form id="student-join-form" class="auth-form">
           <label>课堂码
             <input id="join-room-code" type="text" placeholder="例如：AB12CD">
@@ -57,10 +57,10 @@
         <article class="panel season-panel">
           <div class="panel-title-row">
             <div>
-              <p class="panel-kicker">课堂信息</p>
+              <p class="panel-kicker">课堂状态</p>
               <h2 id="season-title">第 1 / 8 回合</h2>
             </div>
-            <span id="round-status" class="status-pill">准备中</span>
+            <span id="round-status" class="status-pill neutral">准备中</span>
           </div>
           <div class="metric-row">
             <div>
@@ -72,13 +72,13 @@
               <strong id="room-code-display">-</strong>
             </div>
             <div>
-              <span class="metric-label">当前事件</span>
+              <span class="metric-label">当前开始事件</span>
               <strong id="event-title">等待教师发布</strong>
             </div>
           </div>
         </article>
 
-        <article class="panel view-panel">
+        <article class="panel">
           <p class="panel-kicker">控制面板</p>
           <div class="segmented-control" id="view-switcher">
             <button class="segmented-button active" data-view="student">学生端</button>
@@ -108,18 +108,26 @@
               <div class="panel-title-row">
                 <div>
                   <p class="panel-kicker">学生面板</p>
-                  <h2 id="student-name-display">--</h2>
+                  <h2 id="student-name-display">-</h2>
                 </div>
                 <span id="player-role" class="subtle-pill">角色信息</span>
               </div>
               <div class="summary-grid" id="summary-cards"></div>
+              <div id="round-budget" class="mini-grid"></div>
+
               <div class="news-card">
-                <div>
-                  <p class="metric-label">宏观新闻</p>
-                  <h3 id="news-headline">等待本轮事件</h3>
+                <div class="panel-title-row">
+                  <div>
+                    <p class="metric-label">开始事件</p>
+                    <h3 id="news-headline">等待本轮事件</h3>
+                  </div>
+                  <span class="subtle-pill">先看事件，再做配置</span>
                 </div>
-                <p id="news-body">教师发布事件后，这里会显示新闻叙事、市场信号与课堂讨论线索。</p>
+                <p id="news-body"></p>
+                <div id="market-impact" class="impact-grid"></div>
+                <div id="life-impact" class="hint-list"></div>
               </div>
+
               <div class="table-card">
                 <div class="table-header">
                   <h3>资产负债概览</h3>
@@ -136,16 +144,54 @@
                   <tbody id="balance-table"></tbody>
                 </table>
               </div>
+
+              <div class="table-card">
+                <div class="table-header">
+                  <h3>债务明细</h3>
+                  <span class="metric-label">我到底欠了谁、这轮要还多少</span>
+                </div>
+                <div id="debt-detail" class="ledger-box"></div>
+              </div>
+
+              <div class="panel-split">
+                <section class="table-card">
+                  <div class="table-header">
+                    <h3>资产曲线</h3>
+                    <span class="metric-label">净资产 / 总资产 / 总负债</span>
+                  </div>
+                  <div id="asset-curve" class="chart-box"></div>
+                  <div id="asset-mix" class="mix-bars"></div>
+                </section>
+
+                <section class="table-card">
+                  <div class="table-header">
+                    <h3>最近结算单</h3>
+                    <span class="metric-label">为什么分数和资产变了</span>
+                  </div>
+                  <div id="settlement-ledger" class="ledger-box"></div>
+                </section>
+              </div>
+
+              <div class="table-card">
+                <div class="table-header">
+                  <h3>房产模块</h3>
+                  <span class="metric-label">房产是资产 + 房贷 + 低流动性</span>
+                </div>
+                <div id="house-panel" class="ledger-box"></div>
+              </div>
             </article>
 
             <article class="panel decision-panel">
               <div class="panel-title-row">
                 <div>
-                  <p class="panel-kicker">决策包</p>
+                  <p class="panel-kicker">决策区</p>
                   <h2>本轮操作</h2>
                 </div>
                 <span id="decision-status" class="status-pill neutral">未提交</span>
               </div>
+
+              <div id="loan-cards" class="mini-grid"></div>
+
               <form id="decision-form">
                 <div class="form-block">
                   <h3>消费与生活质量</h3>
@@ -153,7 +199,7 @@
                 </div>
 
                 <div class="form-block two-column">
-                  <label>本轮新增消费贷
+                  <label>新增消费贷
                     <input id="borrow-amount" type="number" min="0" step="100" value="0">
                   </label>
                   <label>本轮还款金额
@@ -162,9 +208,28 @@
                 </div>
 
                 <div class="form-block">
+                  <label>还款目标
+                    <select id="repay-target"></select>
+                  </label>
+                </div>
+
+                <div class="form-block">
+                  <div class="section-heading">
+                    <h3>明细还款分配</h3>
+                    <p>如果你想精确控制“这轮先还哪笔、各还多少”，直接在下面输入。填了明细后，会自动覆盖上面的单一还款目标。</p>
+                  </div>
+                  <div class="button-row debt-plan-actions">
+                    <button type="button" id="clear-repay-plan" class="ghost-button">清空分配</button>
+                    <button type="button" id="fill-min-repay" class="ghost-button">填最低还款</button>
+                    <button type="button" id="fill-avalanche-repay" class="ghost-button">优先高息债</button>
+                  </div>
+                  <div id="repayment-plan" class="chip-grid"></div>
+                </div>
+
+                <div class="form-block">
                   <div class="section-heading">
                     <h3>资产配置调整</h3>
-                    <p>正数表示买入，负数表示卖出，单位为元。</p>
+                    <p>正数为买入，负数为卖出。高风险资产会要求确认风险须知。</p>
                   </div>
                   <div id="asset-inputs" class="asset-grid"></div>
                 </div>
@@ -176,20 +241,36 @@
                       <option value="PUT">PUT 看跌</option>
                     </select>
                   </label>
+                  <label>赌博/诈骗类型
+                    <select id="gamble-type"></select>
+                  </label>
+                </div>
+
+                <div class="form-block">
+                  <label>房产操作
+                    <select id="house-action">
+                      <option value="HOLD">持有/不操作</option>
+                      <option value="BUY">买房</option>
+                      <option value="SELL">卖房</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="form-block two-column">
                   <label class="checkbox-row">
                     <input id="risk-confirm" type="checkbox">
-                    <span>我已确认 A7、A8、A9 属于高风险资产</span>
+                    <span>我已确认虚拟币、期权和赌博属于高风险行为</span>
                   </label>
                 </div>
 
                 <div class="decision-preview">
                   <div>
-                    <span class="metric-label">预测最低还款</span>
-                    <strong id="preview-min-pay">0</strong>
+                    <span class="metric-label">最低还款</span>
+                    <strong id="preview-min-pay">￥0</strong>
                   </div>
                   <div>
-                    <span class="metric-label">预测回合末现金</span>
-                    <strong id="preview-cash">0</strong>
+                    <span class="metric-label">预计回合末现金</span>
+                    <strong id="preview-cash">￥0</strong>
                   </div>
                   <div>
                     <span class="metric-label">提交提示</span>
@@ -211,34 +292,38 @@
                   <p class="panel-kicker">教师控制台</p>
                   <h2>回合控制</h2>
                 </div>
-                <span class="subtle-pill">共享正式版</span>
+                <span class="subtle-pill">先发布，再锁定，再结算</span>
               </div>
               <div class="teacher-controls">
-                <label>发布事件
+                <label>发布开始事件
                   <select id="teacher-event"></select>
                 </label>
                 <div class="button-row">
+                  <button id="export-csv" class="ghost-button" type="button">导出成绩 CSV</button>
+                  <button id="archive-room" class="ghost-button" type="button">归档并关闭</button>
+                  <button id="print-report" class="ghost-button" type="button">打印成绩单</button>
                   <button id="publish-round" class="primary-button" type="button">发布并开放</button>
                   <button id="lock-round" class="ghost-button" type="button">锁定回合</button>
                   <button id="settle-round" class="accent-button" type="button">结算回合</button>
                   <button id="reset-room" class="ghost-button" type="button">重置课堂</button>
                 </div>
               </div>
-              <div class="teacher-metrics" id="teacher-metrics"></div>
+              <div id="teacher-metrics" class="teacher-metrics"></div>
+              <div id="class-profile" class="mini-grid"></div>
             </article>
 
             <article class="panel">
               <div class="panel-title-row">
                 <div>
-                  <p class="panel-kicker">教学观察</p>
-                  <h2>课堂提示</h2>
+                  <p class="panel-kicker">课堂提示</p>
+                  <h2>教师讲解重点</h2>
                 </div>
               </div>
               <ul id="teaching-points" class="teaching-list"></ul>
               <div class="table-card">
                 <div class="table-header">
-                  <h3>学生提交进度</h3>
-                  <span class="metric-label">所有学生共享同一回合状态</span>
+                  <h3>学生进度与风险标签</h3>
+                  <span class="metric-label">高负债 / 应急金不足 / 高风险暴露</span>
                 </div>
                 <table>
                   <thead>
@@ -252,6 +337,20 @@
                   <tbody id="submission-table"></tbody>
                 </table>
               </div>
+              <div class="table-card">
+                <div class="table-header">
+                  <h3>历史结算记录</h3>
+                  <span class="metric-label">适合课后复盘与成绩汇总</span>
+                </div>
+                <div id="teacher-history" class="round-log"></div>
+              </div>
+              <div class="table-card">
+                <div class="table-header">
+                  <h3>历史课堂列表</h3>
+                  <span class="metric-label">归档后保留，不会被重置清空</span>
+                </div>
+                <div id="archive-list" class="round-log"></div>
+              </div>
             </article>
           </div>
         </section>
@@ -264,16 +363,16 @@
                   <p class="panel-kicker">课堂排行榜</p>
                   <h2 id="ranking-title">综合得分榜</h2>
                 </div>
-                <span class="subtle-pill">适合教师投屏</span>
+                <span class="subtle-pill">同角色增长更公平</span>
               </div>
-              <div class="ranking-stage" id="ranking-stage"></div>
+              <div id="ranking-stage" class="ranking-stage"></div>
             </article>
 
             <article class="panel">
               <div class="panel-title-row">
                 <div>
                   <p class="panel-kicker">赛季轨迹</p>
-                  <h2>回合记录</h2>
+                  <h2>开始事件与结算事件</h2>
                 </div>
               </div>
               <div id="round-log" class="round-log"></div>
